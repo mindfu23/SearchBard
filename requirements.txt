@@ -1,0 +1,5 @@
+$ sudo apt update
+$ sudo apt install virtualenv  # install virtualenv
+$ cd ~/git/wayofnumbers.github.io/
+$ virtualenv venv -p python3.6  # create a virtualenv for Python 3.6
+$ source venv/bin/activate  # activate the virtual env
