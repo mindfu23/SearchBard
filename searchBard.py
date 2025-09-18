@@ -1,17 +1,21 @@
 # Python script for searching named searchBard
 
-do sendRequest(companies, jobTitle):
+def sendRequest(companies, jobTitle):
 	#text
+	pass
 
 
-do parseReturn(webtext):
+def parseReturn(webtext):
 	#text
+	pass
 
 
-do formatResults(returnedText):
+def formatResults(returnedText):
+	#text
+	pass
 
 	
-do outputPage(stuff):
+def outputPage(stuff):
 	print("got here")
 	print(stuff)
 
