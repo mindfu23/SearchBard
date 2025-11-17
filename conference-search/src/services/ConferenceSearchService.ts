@@ -1,6 +1,6 @@
 import { Conference, SearchFilters } from '../types/Conference';
 import { mockConferences } from '../data/mockConferences';
-import { EventbriteApiService } from './EventbriteApiService';
+import { TicketmasterApiService } from './TicketmasterApiService';
 
 // Simple geocoding function for demonstration purposes
 const getCityCoordinates = (city: string): { lat: number; lng: number } | null => {
@@ -44,10 +44,10 @@ const calculateDistance = (
 
 export class ConferenceSearchService {
   static async searchConferences(filters: SearchFilters): Promise<Conference[]> {
-    // Try to fetch from Eventbrite API first
+    // Try to fetch from Ticketmaster API first
     try {
       const subjects = filters.subjects.length > 0 ? filters.subjects.join(' ') : 'conference';
-      const apiResults = await EventbriteApiService.searchEvents(
+      const apiResults = await TicketmasterApiService.searchEvents(
         subjects,
         filters.location,
         filters.startDate,
@@ -88,7 +88,7 @@ export class ConferenceSearchService {
         return results;
       }
     } catch (error) {
-      console.error('Error fetching from Eventbrite, falling back to mock data:', error);
+      console.error('Error fetching from Ticketmaster, falling back to mock data:', error);
     }
 
     // Fallback to mock data if API fails or returns no results
