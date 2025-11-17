@@ -17,10 +17,22 @@ const getCityCoordinates = (city: string): { lat: number; lng: number } | null =
     'atlanta': { lat: 33.7490, lng: -84.3880 },
     'washington': { lat: 38.9072, lng: -77.0369 },
     'las vegas': { lat: 36.1699, lng: -115.1398 },
-    'san jose': { lat: 37.3382, lng: -121.8863 }
+    'san jose': { lat: 37.3382, lng: -121.8863 },
+    'orlando': { lat: 28.5383, lng: -81.3792 },
+    'dallas': { lat: 32.7767, lng: -96.7970 },
+    'houston': { lat: 29.7604, lng: -95.3698 },
+    'phoenix': { lat: 33.4484, lng: -112.0740 },
+    'san diego': { lat: 32.7157, lng: -117.1611 },
+    'miami': { lat: 25.7617, lng: -80.1918 },
+    'philadelphia': { lat: 39.9526, lng: -75.1652 },
+    'nashville': { lat: 36.1627, lng: -86.7816 },
+    'portland': { lat: 45.5152, lng: -122.6784 }
   };
 
-  return cityCoords[city.toLowerCase()] || null;
+  // Try to extract city name from input like "New York, NY" or "San Francisco"
+  const searchCity = city.toLowerCase().split(',')[0].trim();
+  
+  return cityCoords[searchCity] || null;
 };
 
 // Calculate distance between two coordinates using Haversine formula
@@ -104,9 +116,14 @@ export class ConferenceSearchService {
           console.log(`Filtering by location: ${filters.location} within ${filters.radius} miles`);
           results = results.filter(conference => {
             if (!conference.location.coordinates) {
-              // For events without coordinates, do text matching
-              return conference.location.city.toLowerCase().includes(filters.location.toLowerCase()) ||
-                     conference.location.state.toLowerCase().includes(filters.location.toLowerCase());
+              // For events without coordinates, exclude them when searching by specific location
+              // Only include if the city/state text matches closely
+              const confCity = conference.location.city.toLowerCase();
+              const confState = conference.location.state.toLowerCase();
+              const searchLower = filters.location.toLowerCase();
+              
+              // Only match if the city name appears in the search
+              return searchLower.includes(confCity) || confCity.includes(searchLower.split(',')[0].trim());
             }
             
             const distance = calculateDistance(
@@ -119,6 +136,16 @@ export class ConferenceSearchService {
             return distance <= filters.radius!;
           });
           console.log(`After location filter: ${results.length} events`);
+        } else {
+          // Text matching as fallback - be more strict
+          console.log(`Using strict text matching for location: ${filters.location}`);
+          const searchCity = filters.location.split(',')[0].trim().toLowerCase();
+          results = results.filter(conference => {
+            const confCity = conference.location.city.toLowerCase();
+            const confState = conference.location.state.toLowerCase();
+            // Must match city name closely
+            return confCity.includes(searchCity) || searchCity.includes(confCity);
+          });
         }
       }
 
