@@ -163,18 +163,16 @@ export class TicketmasterApiService {
     }
 
     try {
-      // Build query parameters
+      // Build query parameters - use simple "conference" keyword for better results
       const params = new URLSearchParams({
         apikey: TICKETMASTER_API_KEY,
-        keyword: query || 'conference',
-        size: '50',
+        keyword: 'conference',
+        size: '100',
         sort: 'date,asc'
       });
 
-      // Add location if provided
-      if (location) {
-        params.append('city', location);
-      }
+      // Note: Ticketmaster's city filter is very strict, so we'll filter by location after fetching
+      // to get better results
 
       // Add date range if provided
       if (startDate && endDate) {

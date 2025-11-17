@@ -46,32 +46,36 @@ export class ConferenceSearchService {
   static async searchConferences(filters: SearchFilters): Promise<Conference[]> {
     // Try to fetch from Ticketmaster API first
     try {
-      const subjects = filters.subjects.length > 0 ? filters.subjects.join(' ') : 'conference';
       const apiResults = await TicketmasterApiService.searchEvents(
-        subjects,
+        'conference',
         filters.location,
         filters.startDate,
         filters.endDate
       );
+
+      console.log(`Ticketmaster returned ${apiResults.length} events`);
 
       if (apiResults.length > 0) {
         // Apply additional filtering
         let results = apiResults;
 
         // Filter by subjects if specific subjects were selected
-        if (filters.subjects.length > 0) {
+        if (filters.subjects.length > 0 && filters.subjects.length < 10) {
+          console.log('Filtering by subjects:', filters.subjects);
           results = results.filter(conference =>
             filters.subjects.includes(conference.subject)
           );
+          console.log(`After subject filter: ${results.length} events`);
         }
 
-        // Filter by radius if location is provided
-        if (filters.location && filters.radius) {
+        // Filter by location and radius if location is provided
+        if (filters.location) {
           const searchCoords = getCityCoordinates(filters.location);
           
           if (searchCoords) {
+            console.log(`Filtering by location: ${filters.location} within ${filters.radius} miles`);
             results = results.filter(conference => {
-              if (!conference.location.coordinates) return true; // Include if no coordinates
+              if (!conference.location.coordinates) return false;
               
               const distance = calculateDistance(
                 searchCoords.lat,
@@ -82,9 +86,18 @@ export class ConferenceSearchService {
               
               return distance <= filters.radius!;
             });
+            console.log(`After location filter: ${results.length} events`);
+          } else {
+            // Simple text matching if geocoding fails
+            console.log(`Using text matching for location: ${filters.location}`);
+            results = results.filter(conference =>
+              conference.location.city.toLowerCase().includes(filters.location.toLowerCase()) ||
+              conference.location.state.toLowerCase().includes(filters.location.toLowerCase())
+            );
           }
         }
 
+        console.log(`Final result count: ${results.length}`);
         return results;
       }
     } catch (error) {
