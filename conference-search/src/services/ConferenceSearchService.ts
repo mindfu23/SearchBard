@@ -119,7 +119,6 @@ export class ConferenceSearchService {
               // For events without coordinates, exclude them when searching by specific location
               // Only include if the city/state text matches closely
               const confCity = conference.location.city.toLowerCase();
-              const confState = conference.location.state.toLowerCase();
               const searchLower = filters.location.toLowerCase();
               
               // Only match if the city name appears in the search
@@ -142,7 +141,6 @@ export class ConferenceSearchService {
           const searchCity = filters.location.split(',')[0].trim().toLowerCase();
           results = results.filter(conference => {
             const confCity = conference.location.city.toLowerCase();
-            const confState = conference.location.state.toLowerCase();
             // Must match city name closely
             return confCity.includes(searchCity) || searchCity.includes(confCity);
           });
