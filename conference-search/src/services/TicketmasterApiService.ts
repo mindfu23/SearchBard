@@ -167,7 +167,6 @@ export class TicketmasterApiService {
       const params = new URLSearchParams({
         apikey: TICKETMASTER_API_KEY,
         keyword: query || 'conference',
-        classificationName: 'Conference',
         size: '50',
         sort: 'date,asc'
       });
@@ -185,7 +184,10 @@ export class TicketmasterApiService {
         params.append('startDateTime', `${startDate}T00:00:00Z`);
       }
 
-      const response = await fetch(`${TICKETMASTER_API_URL}/events.json?${params.toString()}`);
+      const url = `${TICKETMASTER_API_URL}/events.json?${params.toString()}`;
+      console.log('Fetching from Ticketmaster:', url);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -195,11 +197,15 @@ export class TicketmasterApiService {
 
       const data: TicketmasterSearchResponse = await response.json();
       
+      console.log('Ticketmaster response:', data);
+      
       if (!data._embedded?.events) {
         console.log('No events found from Ticketmaster');
         return [];
       }
 
+      console.log(`Found ${data._embedded.events.length} events from Ticketmaster`);
+      
       return data._embedded.events.map(convertTicketmasterToConference);
     } catch (error) {
       console.error('Error fetching from Ticketmaster API:', error);
