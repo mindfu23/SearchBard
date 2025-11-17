@@ -1,5 +1,6 @@
 import { Conference, SearchFilters } from '../types/Conference';
 import { mockConferences } from '../data/mockConferences';
+import { EventbriteApiService } from './EventbriteApiService';
 
 // Simple geocoding function for demonstration purposes
 const getCityCoordinates = (city: string): { lat: number; lng: number } | null => {
@@ -42,7 +43,55 @@ const calculateDistance = (
 };
 
 export class ConferenceSearchService {
-  static searchConferences(filters: SearchFilters): Conference[] {
+  static async searchConferences(filters: SearchFilters): Promise<Conference[]> {
+    // Try to fetch from Eventbrite API first
+    try {
+      const subjects = filters.subjects.length > 0 ? filters.subjects.join(' ') : 'conference';
+      const apiResults = await EventbriteApiService.searchEvents(
+        subjects,
+        filters.location,
+        filters.startDate,
+        filters.endDate
+      );
+
+      if (apiResults.length > 0) {
+        // Apply additional filtering
+        let results = apiResults;
+
+        // Filter by subjects if specific subjects were selected
+        if (filters.subjects.length > 0) {
+          results = results.filter(conference =>
+            filters.subjects.includes(conference.subject)
+          );
+        }
+
+        // Filter by radius if location is provided
+        if (filters.location && filters.radius) {
+          const searchCoords = getCityCoordinates(filters.location);
+          
+          if (searchCoords) {
+            results = results.filter(conference => {
+              if (!conference.location.coordinates) return true; // Include if no coordinates
+              
+              const distance = calculateDistance(
+                searchCoords.lat,
+                searchCoords.lng,
+                conference.location.coordinates.lat,
+                conference.location.coordinates.lng
+              );
+              
+              return distance <= filters.radius!;
+            });
+          }
+        }
+
+        return results;
+      }
+    } catch (error) {
+      console.error('Error fetching from Eventbrite, falling back to mock data:', error);
+    }
+
+    // Fallback to mock data if API fails or returns no results
     let results = mockConferences;
 
     // Filter by subjects

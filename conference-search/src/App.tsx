@@ -14,13 +14,17 @@ function App() {
     setIsLoading(true);
     setSearchPerformed(false);
 
-    // Simulate API delay for better UX
-    setTimeout(() => {
-      const results = ConferenceSearchService.searchConferences(filters);
+    try {
+      const results = await ConferenceSearchService.searchConferences(filters);
       setConferences(results);
       setIsLoading(false);
       setSearchPerformed(true);
-    }, 1000);
+    } catch (error) {
+      console.error('Search error:', error);
+      setConferences([]);
+      setIsLoading(false);
+      setSearchPerformed(true);
+    }
   };
 
   return (
