@@ -45,123 +45,92 @@ const calculateDistance = (
 
 export class ConferenceSearchService {
   static async searchConferences(filters: SearchFilters): Promise<Conference[]> {
-    // Try SerpAPI first (Google Events) for better conference coverage
+    const allResults: Conference[] = [];
+    
+    // Try SerpAPI (Google Events)
     try {
-      console.log('Trying SerpAPI...');
+      console.log('Fetching from SerpAPI...');
       const serpResults = await SerpApiService.searchEvents(
         'conference',
         filters.location,
         filters.startDate,
         filters.endDate
       );
-
       console.log(`SerpAPI returned ${serpResults.length} events`);
-
-      if (serpResults.length > 0) {
-        let results = serpResults;
-
-        // Filter by subjects if specific subjects were selected
-        if (filters.subjects.length > 0 && filters.subjects.length < 10) {
-          console.log('Filtering by subjects:', filters.subjects);
-          results = results.filter(conference =>
-            filters.subjects.includes(conference.subject)
-          );
-          console.log(`After subject filter: ${results.length} events`);
-        }
-
-        // Filter by location and radius if location is provided
-        if (filters.location && filters.radius && results.some(r => r.location.coordinates)) {
-          const searchCoords = getCityCoordinates(filters.location);
-          
-          if (searchCoords) {
-            console.log(`Filtering by location: ${filters.location} within ${filters.radius} miles`);
-            results = results.filter(conference => {
-              if (!conference.location.coordinates) return true; // Keep if no coordinates
-              
-              const distance = calculateDistance(
-                searchCoords.lat,
-                searchCoords.lng,
-                conference.location.coordinates.lat,
-                conference.location.coordinates.lng
-              );
-              
-              return distance <= filters.radius!;
-            });
-            console.log(`After location filter: ${results.length} events`);
-          }
-        }
-
-        console.log(`SerpAPI final result count: ${results.length}`);
-        if (results.length > 0) {
-          return results;
-        }
-      }
+      allResults.push(...serpResults);
     } catch (error) {
-      console.error('Error fetching from SerpAPI, trying Ticketmaster:', error);
+      console.error('Error fetching from SerpAPI:', error);
     }
 
-    // Try Ticketmaster as fallback
+    // Try Ticketmaster API
     try {
-      console.log('Trying Ticketmaster API...');
-      const apiResults = await TicketmasterApiService.searchEvents(
+      console.log('Fetching from Ticketmaster API...');
+      const ticketmasterResults = await TicketmasterApiService.searchEvents(
         'conference',
         filters.location,
         filters.startDate,
         filters.endDate
       );
-
-      console.log(`Ticketmaster returned ${apiResults.length} events`);
-
-      if (apiResults.length > 0) {
-        // Apply additional filtering
-        let results = apiResults;
-
-        // Filter by subjects if specific subjects were selected
-        if (filters.subjects.length > 0 && filters.subjects.length < 10) {
-          console.log('Filtering by subjects:', filters.subjects);
-          results = results.filter(conference =>
-            filters.subjects.includes(conference.subject)
-          );
-          console.log(`After subject filter: ${results.length} events`);
-        }
-
-        // Filter by location and radius if location is provided
-        if (filters.location) {
-          const searchCoords = getCityCoordinates(filters.location);
-          
-          if (searchCoords) {
-            console.log(`Filtering by location: ${filters.location} within ${filters.radius} miles`);
-            results = results.filter(conference => {
-              if (!conference.location.coordinates) return false;
-              
-              const distance = calculateDistance(
-                searchCoords.lat,
-                searchCoords.lng,
-                conference.location.coordinates.lat,
-                conference.location.coordinates.lng
-              );
-              
-              return distance <= filters.radius!;
-            });
-            console.log(`After location filter: ${results.length} events`);
-          } else {
-            // Simple text matching if geocoding fails
-            console.log(`Using text matching for location: ${filters.location}`);
-            results = results.filter(conference =>
-              conference.location.city.toLowerCase().includes(filters.location.toLowerCase()) ||
-              conference.location.state.toLowerCase().includes(filters.location.toLowerCase())
-            );
-          }
-        }
-
-        console.log(`Final result count: ${results.length}`);
-        return results;
-      }
+      console.log(`Ticketmaster returned ${ticketmasterResults.length} events`);
+      allResults.push(...ticketmasterResults);
     } catch (error) {
-      console.error('Error fetching from Ticketmaster, falling back to mock data:', error);
+      console.error('Error fetching from Ticketmaster:', error);
+    }
+
+    console.log(`Total events before deduplication: ${allResults.length}`);
+
+    // If we have results from APIs, process them
+    if (allResults.length > 0) {
+      // Remove duplicates based on title, date, and location
+      const deduplicated = this.deduplicateConferences(allResults);
+      console.log(`Events after deduplication: ${deduplicated.length}`);
+      
+      let results = deduplicated;
+
+      // Filter by subjects if specific subjects were selected
+      if (filters.subjects.length > 0 && filters.subjects.length < 10) {
+        console.log('Filtering by subjects:', filters.subjects);
+        results = results.filter(conference =>
+          filters.subjects.includes(conference.subject)
+        );
+        console.log(`After subject filter: ${results.length} events`);
+      }
+
+      // Filter by location and radius if location is provided
+      if (filters.location && filters.radius) {
+        const searchCoords = getCityCoordinates(filters.location);
+        
+        if (searchCoords) {
+          console.log(`Filtering by location: ${filters.location} within ${filters.radius} miles`);
+          results = results.filter(conference => {
+            if (!conference.location.coordinates) {
+              // For events without coordinates, do text matching
+              return conference.location.city.toLowerCase().includes(filters.location.toLowerCase()) ||
+                     conference.location.state.toLowerCase().includes(filters.location.toLowerCase());
+            }
+            
+            const distance = calculateDistance(
+              searchCoords.lat,
+              searchCoords.lng,
+              conference.location.coordinates.lat,
+              conference.location.coordinates.lng
+            );
+            
+            return distance <= filters.radius!;
+          });
+          console.log(`After location filter: ${results.length} events`);
+        }
+      }
+
+      console.log(`Final result count from APIs: ${results.length}`);
+      
+      if (results.length > 0) {
+        return results.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+      }
     }
 
     // Fallback to mock data if API fails or returns no results
+    console.log('Falling back to mock data');
     let results = mockConferences;
 
     // Filter by subjects
@@ -218,6 +187,45 @@ export class ConferenceSearchService {
     results.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
     return results;
+  }
+
+  // Helper method to remove duplicate conferences
+  private static deduplicateConferences(conferences: Conference[]): Conference[] {
+    const seen = new Map<string, Conference>();
+    
+    for (const conference of conferences) {
+      // Create a key based on normalized title and start date
+      const normalizedTitle = conference.title.toLowerCase().trim().replace(/\s+/g, ' ');
+      const key = `${normalizedTitle}|${conference.startDate}`;
+      
+      // If we haven't seen this event, or if this one has more info, keep it
+      if (!seen.has(key)) {
+        seen.set(key, conference);
+      } else {
+        const existing = seen.get(key)!;
+        // Keep the one with more complete information (has coordinates, description, price, etc.)
+        const existingScore = this.calculateCompletenessScore(existing);
+        const newScore = this.calculateCompletenessScore(conference);
+        
+        if (newScore > existingScore) {
+          seen.set(key, conference);
+        }
+      }
+    }
+    
+    return Array.from(seen.values());
+  }
+
+  // Calculate how complete the conference information is
+  private static calculateCompletenessScore(conference: Conference): number {
+    let score = 0;
+    if (conference.location.coordinates) score += 2;
+    if (conference.description && conference.description.length > 50) score += 2;
+    if (conference.price) score += 1;
+    if (conference.attendeeCount) score += 1;
+    if (conference.website && conference.website !== '#') score += 1;
+    if (conference.organizer && conference.organizer !== 'Event Organizer' && conference.organizer !== 'Ticketmaster Event') score += 1;
+    return score;
   }
 
   static getAllSubjects(): string[] {
