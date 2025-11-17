@@ -32,7 +32,7 @@ function App() {
       <header className="App-header">
         <h1>Conference Search Portal</h1>
         <p className="App-subtitle">
-          Discover conferences across the top 10 subjects in your area and time range
+          Discover conferences across these subjects in your area and time range
         </p>
       </header>
 

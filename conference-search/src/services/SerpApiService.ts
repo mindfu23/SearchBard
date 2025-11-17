@@ -66,6 +66,10 @@ const determineSubjectFromQuery = (title: string, description: string): string =
   if (combined.includes('engineering') || combined.includes('mechanical') || combined.includes('civil')) {
     return 'Engineering';
   }
+  if (combined.includes('sport') || combined.includes('athletic') || combined.includes('fitness') ||
+      combined.includes('tournament') || combined.includes('championship')) {
+    return 'Sports';
+  }
   
   return 'Business'; // Default
 };

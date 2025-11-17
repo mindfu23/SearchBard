@@ -51,7 +51,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading = false }) 
   return (
     <div className="search-form-container">
       <h2>Conference Search</h2>
-      <p className="subtitle">Find conferences across the top 10 subjects in your area</p>
+      <p className="subtitle">Find conferences across these subjects in your area</p>
       
       <form onSubmit={handleSubmit} className="search-form">
         <div className="form-section">

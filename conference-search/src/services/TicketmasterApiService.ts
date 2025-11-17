@@ -110,7 +110,7 @@ const mapClassificationToSubject = (classifications?: Array<{
   }
 
   // Default based on segment
-  if (segment.includes('sports')) return 'Other';
+  if (segment.includes('sports')) return 'Sports';
   if (segment.includes('music')) return 'Other';
   
   return 'Business'; // Default for most conferences

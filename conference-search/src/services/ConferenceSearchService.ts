@@ -100,7 +100,7 @@ export class ConferenceSearchService {
       let results = deduplicated;
 
       // Filter by subjects if specific subjects were selected
-      if (filters.subjects.length > 0 && filters.subjects.length < 10) {
+      if (filters.subjects.length > 0 && filters.subjects.length < 11) {
         console.log('Filtering by subjects:', filters.subjects);
         results = results.filter(conference =>
           filters.subjects.includes(conference.subject)

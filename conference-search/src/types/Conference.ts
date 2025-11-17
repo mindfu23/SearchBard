@@ -42,7 +42,8 @@ export const TOP_SUBJECTS = [
   'Finance',
   'Environment',
   'Arts & Design',
-  'Engineering'
+  'Engineering',
+  'Sports'
 ] as const;
 
 export type SubjectType = typeof TOP_SUBJECTS[number];
