@@ -131,7 +131,6 @@ export class EventbriteApiService {
     try {
       // Build query parameters
       const params = new URLSearchParams({
-        token: EVENTBRITE_API_KEY,
         q: query || 'conference',
         'sort_by': 'date',
         expand: 'venue,organizer,ticket_availability'
@@ -150,7 +149,11 @@ export class EventbriteApiService {
         params.append('start_date.range_end', `${endDate}T23:59:59`);
       }
 
-      const response = await fetch(`${EVENTBRITE_API_URL}/events/search/?${params.toString()}`);
+      const response = await fetch(`${EVENTBRITE_API_URL}/events/search/?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${EVENTBRITE_API_KEY}`
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Eventbrite API error: ${response.status} ${response.statusText}`);
