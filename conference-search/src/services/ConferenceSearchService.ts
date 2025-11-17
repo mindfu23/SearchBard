@@ -1,6 +1,7 @@
 import { Conference, SearchFilters } from '../types/Conference';
 import { mockConferences } from '../data/mockConferences';
 import { TicketmasterApiService } from './TicketmasterApiService';
+import { SerpApiService } from './SerpApiService';
 
 // Simple geocoding function for demonstration purposes
 const getCityCoordinates = (city: string): { lat: number; lng: number } | null => {
@@ -44,8 +45,64 @@ const calculateDistance = (
 
 export class ConferenceSearchService {
   static async searchConferences(filters: SearchFilters): Promise<Conference[]> {
-    // Try to fetch from Ticketmaster API first
+    // Try SerpAPI first (Google Events) for better conference coverage
     try {
+      console.log('Trying SerpAPI...');
+      const serpResults = await SerpApiService.searchEvents(
+        'conference',
+        filters.location,
+        filters.startDate,
+        filters.endDate
+      );
+
+      console.log(`SerpAPI returned ${serpResults.length} events`);
+
+      if (serpResults.length > 0) {
+        let results = serpResults;
+
+        // Filter by subjects if specific subjects were selected
+        if (filters.subjects.length > 0 && filters.subjects.length < 10) {
+          console.log('Filtering by subjects:', filters.subjects);
+          results = results.filter(conference =>
+            filters.subjects.includes(conference.subject)
+          );
+          console.log(`After subject filter: ${results.length} events`);
+        }
+
+        // Filter by location and radius if location is provided
+        if (filters.location && filters.radius && results.some(r => r.location.coordinates)) {
+          const searchCoords = getCityCoordinates(filters.location);
+          
+          if (searchCoords) {
+            console.log(`Filtering by location: ${filters.location} within ${filters.radius} miles`);
+            results = results.filter(conference => {
+              if (!conference.location.coordinates) return true; // Keep if no coordinates
+              
+              const distance = calculateDistance(
+                searchCoords.lat,
+                searchCoords.lng,
+                conference.location.coordinates.lat,
+                conference.location.coordinates.lng
+              );
+              
+              return distance <= filters.radius!;
+            });
+            console.log(`After location filter: ${results.length} events`);
+          }
+        }
+
+        console.log(`SerpAPI final result count: ${results.length}`);
+        if (results.length > 0) {
+          return results;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching from SerpAPI, trying Ticketmaster:', error);
+    }
+
+    // Try Ticketmaster as fallback
+    try {
+      console.log('Trying Ticketmaster API...');
       const apiResults = await TicketmasterApiService.searchEvents(
         'conference',
         filters.location,
