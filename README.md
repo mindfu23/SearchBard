@@ -1,0 +1,1 @@
+Proof of concept for a site that would corral information from other sites and sources of information, to provide an easily searchable database of conferences. Pilot version to concentrate on top 10 cities for conferences in the US, and top 11 (current) categories of conferences. 
