@@ -1,17 +1,51 @@
+/**
+ * SerpApiService
+ * 
+ * Integration with SerpAPI to access Google Events data.
+ * 
+ * SerpAPI provides a programmatic interface to Google's event search results,
+ * which aggregates events from across the web including conference websites,
+ * event platforms, and various other sources.
+ * 
+ * API Documentation: https://serpapi.com/events-results
+ * 
+ * Why Use SerpAPI?
+ * - Access to Google's comprehensive event index
+ * - No need to scrape Google directly (which violates ToS)
+ * - Structured JSON responses
+ * - Reliable uptime and consistent API
+ * 
+ * Limitations:
+ * - Free tier: 100 searches/month
+ * - Event data quality varies (depends on source websites)
+ * - Some events may lack complete information (coordinates, prices, etc.)
+ * 
+ * API Key Setup:
+ * 1. Sign up at https://serpapi.com/
+ * 2. Add key to .env: REACT_APP_SERPAPI_API_KEY=your_key
+ */
+
 import { Conference } from '../types/Conference';
 
+// API configuration
 const SERPAPI_API_KEY = process.env.REACT_APP_SERPAPI_API_KEY || '';
 const SERPAPI_API_URL = 'https://serpapi.com/search.json';
 
+/**
+ * Type definition for SerpAPI event objects
+ * 
+ * SerpAPI returns events in this structure from Google's event search.
+ * Note: Many fields are optional as not all event sources provide complete data.
+ */
 interface SerpApiEvent {
   title: string;
   date: {
-    start_date?: string;
-    when?: string;
+    start_date?: string;  // Format varies: "2025-06-15" or "Jun 15"
+    when?: string;         // Human-readable date string
   };
-  address?: string[];
-  link?: string;
-  description?: string;
+  address?: string[];      // Array of address components
+  link?: string;           // URL to event page
+  description?: string;    // Event description (may be truncated)
   venue?: {
     name?: string;
     link?: string;
@@ -23,15 +57,44 @@ interface SerpApiEvent {
   }[];
 }
 
+/**
+ * Type definition for SerpAPI response structure
+ */
 interface SerpApiResponse {
-  events_results?: SerpApiEvent[];
+  events_results?: SerpApiEvent[];  // Array of events, if any found
   search_metadata?: {
-    status?: string;
+    status?: string;                 // API call status
   };
-  error?: string;
+  error?: string;                    // Error message if API call failed
 }
 
-// Map keywords to conference subjects
+/**
+ * Intelligent subject classification based on event content
+ * 
+ * Analyzes title and description text to categorize events into our
+ * standardized subject taxonomy. Uses keyword matching with priority
+ * given to more specific topics.
+ * 
+ * Algorithm:
+ * 1. Combine title + description into lowercase string
+ * 2. Check for topic-specific keywords in order of specificity
+ * 3. Return first matching category
+ * 4. Default to "Business" if no matches
+ * 
+ * Why this approach?
+ * - APIs don't use consistent categorization schemes
+ * - Keyword matching is simple but effective for our 11 categories
+ * - Easy to extend with new keywords or categories
+ * 
+ * Improvement opportunities:
+ * - Use ML classification for better accuracy
+ * - Support multiple categories per event
+ * - Allow user to override classifications
+ * 
+ * @param title - Event title
+ * @param description - Event description
+ * @returns Subject category string matching our taxonomy
+ */
 const determineSubjectFromQuery = (title: string, description: string): string => {
   const combined = `${title} ${description}`.toLowerCase();
   
