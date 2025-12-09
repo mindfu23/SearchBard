@@ -3,9 +3,10 @@
   command = "npm run build"
   publish = "build"
 
-[build.environment]
-  REACT_APP_TICKETMASTER_API_KEY = "4XDdUqBLaB7GOTLY5GjHyg7kKxtzUtZG"
-  REACT_APP_SERPAPI_API_KEY = "c3ed9dfec1f8b54fc80784e27a565ddd96e00af331cac977d697bd96d9815d17"
+# Environment variables are set in Netlify dashboard
+# Go to Site settings > Environment variables to configure:
+# REACT_APP_TICKETMASTER_API_KEY = your_ticketmaster_api_key
+# REACT_APP_SERPAPI_API_KEY = your_serpapi_key
 
 [[redirects]]
   from = "/*"
