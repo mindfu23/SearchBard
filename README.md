@@ -287,15 +287,190 @@ Check that:
 - You've restarted the dev server after adding API keys
 - API keys have not exceeded their rate limits
 
+## Python Script - searchBard.py
+
+The repository also includes **searchBard.py**, a standalone Python module for advanced conference data management with web scraping, data aggregation, and Firebase storage capabilities. This provides an alternative data collection strategy independent of the React application.
+
+### Features
+
+- **Web Scraping**: Extract conference data from websites using BeautifulSoup and Requests
+- **Large-scale Crawling**: Use Scrapy for crawling multiple pages and domains
+- **Data Aggregation**: Deduplicate and merge conference data from multiple sources using Pandas
+- **Firebase Integration**: Store and retrieve conference data using Firebase Firestore
+- **Export/Import**: Save and load conference data as JSON files
+
+### Python Setup
+
+1. **Install Python dependencies**:
+   ```bash
+   cd /path/to/SearchBard
+   pip install -r requirements.txt
+   ```
+
+2. **Configure environment** (optional, for Firebase):
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your Firebase credentials
+   ```
+
+3. **Run the demo**:
+   ```bash
+   python searchBard.py
+   ```
+
+### Python Usage Examples
+
+#### Basic Web Scraping
+
+```python
+from searchBard import ConferenceDataManager
+
+manager = ConferenceDataManager()
+
+# Scrape a single page
+conferences = manager.scrape_conference_page('https://example.com/conferences')
+
+# Scrape multiple pages
+urls = ['https://site1.com/events', 'https://site2.com/conferences']
+all_conferences = manager.scrape_multiple_pages(urls)
+```
+
+#### Data Aggregation and Deduplication
+
+```python
+# Aggregate data from multiple sources
+conferences = manager.scrape_multiple_pages(urls)
+clean_df = manager.aggregate_and_deduplicate(conferences)
+
+# Merge multiple DataFrames
+df1 = manager.aggregate_and_deduplicate(source1_data)
+df2 = manager.aggregate_and_deduplicate(source2_data)
+merged = manager.merge_conference_sources(df1, df2)
+
+# Export to JSON
+manager.export_to_json(clean_df, 'conferences.json')
+```
+
+#### Scrapy for Large-scale Scraping
+
+```python
+# Create a Scrapy spider
+spider = manager.create_scrapy_spider(
+    start_urls=['https://example.com/conferences'],
+    allowed_domains=['example.com']
+)
+
+# Run the spider
+manager.run_scrapy_spider(spider, 'scraped_conferences.json')
+```
+
+#### Firebase Integration
+
+```python
+# Initialize with Firebase credentials
+manager = ConferenceDataManager()
+
+# Store conferences to Firebase
+df = manager.aggregate_and_deduplicate(conferences)
+manager.store_to_firebase(df, collection_name='conferences')
+
+# Query from Firebase
+tech_conferences = manager.query_firebase(
+    filters={'subject': 'Technology'},
+    limit=50
+)
+
+# Get all conferences
+all_conferences = manager.get_all_conferences()
+```
+
+### Firebase Setup
+
+To use Firebase features:
+
+1. **Create Firebase Project**:
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Create a new project or select existing
+   - Enable Firestore Database
+
+2. **Get Service Account Credentials**:
+   - Navigate to Project Settings > Service Accounts
+   - Click "Generate New Private Key"
+   - Save the JSON file securely (DO NOT commit to git)
+
+3. **Configure Environment**:
+   ```bash
+   # In .env file
+   FIREBASE_CREDENTIALS_PATH=/path/to/your/firebase-credentials.json
+   FIREBASE_PROJECT_ID=your-project-id
+   FIREBASE_DATABASE_URL=https://your-project-id.firebaseio.com
+   FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+   ```
+
+### Python Dependencies
+
+The script requires the following packages (listed in `requirements.txt`):
+
+- **beautifulsoup4**: HTML parsing for web scraping
+- **requests**: HTTP library for fetching web pages
+- **lxml**: Fast XML/HTML parser
+- **scrapy**: Web crawling and scraping framework
+- **pandas**: Data manipulation and analysis
+- **dask**: Parallel computing for large datasets
+- **firebase-admin**: Firebase Admin SDK
+- **python-dotenv**: Environment variable management
+
+### Customizing the Scraper
+
+The generic scraper in `scrape_conference_page()` looks for common HTML patterns. To scrape specific websites, you may need to customize the selectors:
+
+```python
+def custom_scraper(url):
+    manager = ConferenceDataManager()
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'lxml')
+    
+    conferences = []
+    for item in soup.select('div.conference-card'):  # Custom selector
+        conferences.append({
+            'title': item.select_one('h2.title').text,
+            'location': item.select_one('span.location').text,
+            'date': item.select_one('time').get('datetime'),
+            # ... more fields
+        })
+    
+    return conferences
+```
+
+### Data Flow
+
+```
+Web Scraping (BeautifulSoup/Scrapy)
+    ↓
+Data Aggregation (Pandas)
+    ↓
+Deduplication & Cleaning
+    ↓
+Firebase Storage (Optional)
+    ↓
+Query & Retrieval
+```
+
+### Firebase Free Tier Limits
+
+- **Firestore**: 1GB storage, 50K reads/day, 20K writes/day, 20K deletes/day
+- **Realtime Database**: 1GB storage, 10GB/month transfer
+- **Storage**: 5GB storage, 1GB/day download
+
+These limits are sufficient for storing thousands of conference records.
+
 ## Legacy Files
 
-The following files in the root directory are from earlier project iterations and are **not used** by the current application:
+The following file in the root directory is from an earlier project iteration:
 
-- **searchBard.py**: Python prototype with stub functions. Not functional.
 - **search.html**: Experiment with Indeed Jobs API. Deprecated.
-- **requirements.txt**: Python virtualenv setup for old prototype.
 
-The active codebase is entirely within the `conference-search/` directory.
+The active React application codebase is entirely within the `conference-search/` directory.
 
 ## Deployment
 
