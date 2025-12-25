@@ -39,13 +39,23 @@ from bs4 import BeautifulSoup
 # Data Processing
 import pandas as pd
 
-# Firebase
-import firebase_admin
-from firebase_admin import credentials, db, firestore
+# Firebase (optional - imported only when needed)
+try:
+    import firebase_admin
+    from firebase_admin import credentials, db, firestore
+    FIREBASE_AVAILABLE = True
+except ImportError:
+    FIREBASE_AVAILABLE = False
+    print("Warning: firebase-admin not installed. Firebase features will be disabled.")
 
-# Scrapy imports (for advanced scraping)
-from scrapy import Spider, Request
-from scrapy.crawler import CrawlerProcess
+# Scrapy imports (optional - for advanced scraping)
+try:
+    from scrapy import Spider, Request
+    from scrapy.crawler import CrawlerProcess
+    SCRAPY_AVAILABLE = True
+except ImportError:
+    SCRAPY_AVAILABLE = False
+    print("Warning: scrapy not installed. Scrapy features will be disabled.")
 
 
 class ConferenceDataManager:
@@ -74,6 +84,10 @@ class ConferenceDataManager:
         Args:
             creds_path: Path to Firebase service account credentials JSON file.
         """
+        if not FIREBASE_AVAILABLE:
+            print("Warning: Firebase not available. Install firebase-admin to use Firebase features.")
+            return
+            
         try:
             if not creds_path:
                 creds_path = os.getenv('FIREBASE_CREDENTIALS_PATH')
@@ -241,7 +255,7 @@ class ConferenceDataManager:
             allowed_domains: Optional list of allowed domains for crawling
             
         Returns:
-            ConferenceSpider class ready to be run
+            ConferenceSpider class ready to be run, or None if Scrapy not available
             
         Example:
             spider_class = manager.create_scrapy_spider(
@@ -250,6 +264,9 @@ class ConferenceDataManager:
             )
             # Run the spider using Scrapy's CrawlerProcess
         """
+        if not SCRAPY_AVAILABLE:
+            print("Error: Scrapy not installed. Install scrapy to use this feature.")
+            return None
         
         class ConferenceSpider(Spider):
             name = 'conference_spider'
@@ -289,6 +306,14 @@ class ConferenceDataManager:
             spider = manager.create_scrapy_spider(['https://example.com'])
             manager.run_scrapy_spider(spider, 'conferences.json')
         """
+        if not SCRAPY_AVAILABLE:
+            print("Error: Scrapy not installed. Install scrapy to use this feature.")
+            return
+            
+        if spider_class is None:
+            print("Error: Invalid spider class")
+            return
+            
         process = CrawlerProcess(settings={
             'FEEDS': {
                 output_file: {'format': 'json'},
