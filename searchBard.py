@@ -137,7 +137,7 @@ class ConferenceDataManager:
         """
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
@@ -202,9 +202,14 @@ class ConferenceDataManager:
             )
             description = desc_elem.get_text(strip=True) if desc_elem else ""
             
-            # Extract link
+            # Extract and validate link
             link_elem = container.find('a', href=True)
-            link = link_elem['href'] if link_elem else ""
+            link = ""
+            if link_elem and link_elem.get('href'):
+                href = link_elem['href']
+                # Basic URL validation - ensure it's a valid URL format
+                if href.startswith(('http://', 'https://', '/')):
+                    link = href
             
             return {
                 'title': title,
@@ -250,6 +255,9 @@ class ConferenceDataManager:
         This creates a basic spider that can be customized for specific websites.
         Scrapy is more suitable for crawling multiple pages and handling complex scenarios.
         
+        Note: CrawlerProcess can only be started once per Python process. For multiple
+        spider runs, you need to restart the Python process or use CrawlerRunner with asyncio.
+        
         Args:
             start_urls: List of URLs to start crawling from
             allowed_domains: Optional list of allowed domains for crawling
@@ -268,10 +276,15 @@ class ConferenceDataManager:
             print("Error: Scrapy not installed. Install scrapy to use this feature.")
             return None
         
+        # Create spider with proper class attributes to avoid scope issues
         class ConferenceSpider(Spider):
             name = 'conference_spider'
-            start_urls = start_urls
-            allowed_domains = allowed_domains or []
+            
+            def __init__(self, *args, **kwargs):
+                super(ConferenceSpider, self).__init__(*args, **kwargs)
+                # Set attributes from parameters passed during initialization
+                self.start_urls = kwargs.get('start_urls', start_urls)
+                self.allowed_domains = kwargs.get('allowed_domains', allowed_domains or [])
             
             def parse(self, response):
                 """Parse conference data from response."""
@@ -292,11 +305,20 @@ class ConferenceDataManager:
                 if next_page:
                     yield response.follow(next_page, self.parse)
         
+        # Store the URLs as class attributes
+        ConferenceSpider.custom_start_urls = start_urls
+        ConferenceSpider.custom_allowed_domains = allowed_domains or []
+        
         return ConferenceSpider
     
     def run_scrapy_spider(self, spider_class, output_file: str = 'scraped_conferences.json'):
         """
         Run a Scrapy spider and save results to a file.
+        
+        Note: CrawlerProcess.start() can only be called once per Python process.
+        If you need to run multiple spiders, either:
+        1. Run them in separate Python processes, or
+        2. Use CrawlerRunner with asyncio for more control
         
         Args:
             spider_class: The spider class to run
@@ -314,16 +336,23 @@ class ConferenceDataManager:
             print("Error: Invalid spider class")
             return
             
-        process = CrawlerProcess(settings={
-            'FEEDS': {
-                output_file: {'format': 'json'},
-            },
-            'LOG_LEVEL': 'INFO',
-        })
-        
-        process.crawl(spider_class)
-        process.start()
-        print(f"Scrapy spider completed. Results saved to {output_file}")
+        try:
+            process = CrawlerProcess(settings={
+                'FEEDS': {
+                    output_file: {'format': 'json'},
+                },
+                'LOG_LEVEL': 'INFO',
+            })
+            
+            process.crawl(spider_class)
+            process.start()  # Can only be called once per process
+            print(f"Scrapy spider completed. Results saved to {output_file}")
+        except RuntimeError as e:
+            if "Cannot run reactor twice" in str(e) or "reactor" in str(e).lower():
+                print("Error: CrawlerProcess can only be started once per Python process.")
+                print("To run multiple spiders, restart your Python interpreter or use separate processes.")
+            else:
+                raise
     
     # =========================================================================
     # Data Aggregation and Deduplication - Pandas
@@ -420,9 +449,9 @@ class ConferenceDataManager:
             DataFrame with added 'conference_id' column
         """
         def create_hash(row):
-            # Create hash from title, location, and date
+            # Create hash from title, location, and date using SHA-256
             hash_string = f"{row.get('title', '')}_{row.get('location', '')}_{row.get('date', '')}"
-            return hashlib.md5(hash_string.encode()).hexdigest()
+            return hashlib.sha256(hash_string.encode()).hexdigest()
         
         df['conference_id'] = df.apply(create_hash, axis=1)
         return df
@@ -467,8 +496,14 @@ class ConferenceDataManager:
                 # Convert any non-serializable types
                 conference = self._sanitize_for_firebase(conference)
                 
+                # Validate conference_id exists
+                conf_id = conference.get('conference_id')
+                if not conf_id:
+                    print(f"Warning: Skipping conference without ID: {conference.get('title', 'Unknown')}")
+                    continue
+                
                 # Use conference_id as document ID
-                doc_ref = collection_ref.document(conference.get('conference_id', ''))
+                doc_ref = collection_ref.document(conf_id)
                 batch.set(doc_ref, conference, merge=True)
                 count += 1
                 
